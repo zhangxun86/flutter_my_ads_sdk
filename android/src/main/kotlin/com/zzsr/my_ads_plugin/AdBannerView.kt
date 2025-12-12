@@ -1,4 +1,4 @@
-package com.zzsr.untitled4 // 【确认包名】
+package com.zzsr.my_ads_plugin // 【确认包名】
 
 import android.content.Context
 import android.graphics.Color
