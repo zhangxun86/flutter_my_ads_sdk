@@ -1,38 +1,33 @@
 group = "com.zzsr.my_ads_plugin"
 version = "1.0-SNAPSHOT"
 
-buildscript {
-    ext.kotlin_version = "1.9.10" // 建议用稳定版本，2.x 有时会有兼容问题，可改回你想要的
+plugins {
+    id("com.android.library")
+    id("kotlin-android")
+}
+
+// 【关键修改 1】将插件的 libs 目录注册为仓库，并注入到宿主项目中
+// 这样宿主 App 才能找到插件里的 aar 文件
+rootProject.allprojects {
     repositories {
         google()
         mavenCentral()
-    }
+        // 广告 SDK 远程仓库
+        maven { url = uri("https://artifact.bytedance.com/repository/pangle") }
+        maven { url = uri("https://jitpack.io") }
+        maven { url = uri("https://developer.huawei.com/repo/") }
 
-    dependencies {
-        // 这里的版本号保持你项目生成的即可
-        classpath("com.android.tools.build:gradle:8.1.1")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
-    }
-}
-
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-
-        // 【新增 1】必须添加广告 SDK 需要的远程仓库
-        maven { url "https://artifact.bytedance.com/repository/pangle" }
-        maven { url 'https://jitpack.io' }
-        maven { url 'https://developer.huawei.com/repo/' }
+        // 本地 libs 仓库
+        flatDir {
+            // 这里的 project(":my_ads_plugin") 必须和 pubspec.yaml 里的 name 一致
+            dirs(project(":my_ads_plugin").file("libs"))
+        }
     }
 }
-
-apply plugin: "com.android.library"
-apply plugin: "kotlin-android"
 
 android {
     namespace = "com.zzsr.my_ads_plugin"
-    compileSdk = 34 // 建议用 34，36 可能太新了不稳定
+    compileSdk = 34
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -43,69 +38,59 @@ android {
         jvmTarget = "17"
     }
 
-    sourceSets {
-        main.java.srcDirs += "src/main/kotlin"
-        test.java.srcDirs += "src/test/kotlin"
-    }
-
     defaultConfig {
-        minSdk = 24
-
-        // 【新增 2】开启 MultiDex (广告SDK方法数很多)
-        multiDexEnabled true
-
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        minSdk = 21
+        // 开启 MultiDex
+        multiDexEnabled = true
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    // 【新增 3】避免发布 release 包时混淆导致类找不到
     buildTypes {
         release {
-            minifyEnabled false
-        }
-    }
-
-    testOptions {
-        unitTests.all {
-            useJUnitPlatform()
-            testLogging {
-                events "passed", "skipped", "failed", "standardOut", "standardError"
-                outputs.upToDateWhen {false}
-                showStandardStreams = true
-            }
+            isMinifyEnabled = false
         }
     }
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    testImplementation("org.jetbrains.kotlin:kotlin-test")
-    testImplementation("org.mockito:mockito-core:5.0.0")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.0")
 
     // =========================================================
-    // 【新增 4】核心广告 SDK 依赖迁移
+    // 【关键修改 2】本地 AAR 依赖方式变更
+    // 不能直接用 fileTree 引入 aar，必须拆解成 name 引用
     // =========================================================
 
-    // 1. 引入 libs 下所有的 .aar 和 .jar
-    // 注意：你必须把之前项目 android/app/libs 里的文件复制到 本插件 android/libs 下
-    implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
+    // 1. 引入 libs 下所有的 .jar (jar 可以直接用 fileTree)
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
 
-    // 2. 京东渠道 SDK
-    implementation 'com.github.JAD-FE-TEAM.JADYunAndroid:jad_yun_sdk:2.6.28'
+    // 2. 引入 libs 下所有的 .aar (aar 必须通过 flatDir 仓库引用)
+    val libsDir = file("libs")
+    if (libsDir.exists()) {
+        fileTree(mapOf("dir" to libsDir, "include" to listOf("*.aar"))).forEach { file ->
+            // 获取文件名（不带后缀），例如 "AMPSSDK-5.1.0.34"
+            val name = file.name.removeSuffix(".aar")
+            // 以 artifact 的形式引入
+            implementation(name = name, ext = "aar")
+        }
+    }
 
-    // 3. 华为渠道 SDK
-    implementation "com.huawei.hms:ads-lite:13.4.78.301"
-    implementation "com.huawei.hms:ads-consent:3.4.78.301"
+    // =========================================================
+    // 其他第三方依赖
+    // =========================================================
 
-    // 4. MultiDex
-    implementation 'androidx.multidex:multidex:2.0.1'
+    // 京东
+    implementation("com.github.JAD-FE-TEAM.JADYunAndroid:jad_yun_sdk:2.6.28")
 
-    // 5. 基础依赖 (Gson, AppCompat, Material)
-    implementation 'com.google.code.gson:gson:2.8.9'
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'androidx.cardview:cardview:1.0.0'
-    implementation 'androidx.recyclerview:recyclerview:1.3.2'
-    implementation 'com.google.android.material:material:1.10.0'
+    // 华为
+    implementation("com.huawei.hms:ads-lite:13.4.78.301")
+    implementation("com.huawei.hms:ads-consent:3.4.78.301")
 
-    // 6. Glide (自渲染广告必须)
-    implementation 'com.github.bumptech.glide:glide:4.16.0'
+    // 基础库
+    implementation("androidx.multidex:multidex:2.0.1")
+    implementation("com.google.code.gson:gson:2.8.9")
+    implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("androidx.cardview:cardview:1.0.0")
+    implementation("androidx.recyclerview:recyclerview:1.3.2")
+    implementation("com.google.android.material:material:1.10.0")
+    implementation("com.github.bumptech.glide:glide:4.16.0")
 }
