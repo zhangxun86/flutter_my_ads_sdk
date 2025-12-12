@@ -22,12 +22,24 @@ class MyAdsPlugin {
     });
   }
 
-  static Future<void> showSplash(String posId) async {
-    await _channel.invokeMethod('showSplash', {"posId": posId});
+  /// 展示开屏广告
+  /// [posId] 广告位ID
+  /// [count] 连续展示次数，默认为 1
+  static Future<void> showSplash({required String posId, int count = 1}) async {
+    await _channel.invokeMethod('showSplash', {
+      "posId": posId,
+      "count": count, // 传给 Android
+    });
   }
 
-  static Future<void> showInterstitial(String posId) async {
-    await _channel.invokeMethod('showInterstitial', {"posId": posId});
+  /// 展示插屏广告
+  /// [posId] 广告位ID
+  /// [count] 连续展示次数，默认为 1
+  static Future<void> showInterstitial({required String posId, int count = 1}) async {
+    await _channel.invokeMethod('showInterstitial', {
+      "posId": posId,
+      "count": count, // 传给 Android
+    });
   }
 
   static Future<void> showRewardVideo(String posId) async {
