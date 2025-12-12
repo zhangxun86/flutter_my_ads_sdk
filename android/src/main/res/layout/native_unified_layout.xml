@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xyz.adscope.amps.ad.unified.view.AMPSUnifiedRootContainer
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/ad_unified_container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#FFFFFF"
+    android:padding="10dp">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- 主图容器 -->
+        <FrameLayout
+            android:id="@+id/ad_main_image_container"
+            android:layout_width="120dp"
+            android:layout_height="80dp"
+            android:background="#EEEEEE"
+            android:layout_centerVertical="true" />
+
+        <!-- 文本区域 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_toEndOf="@id/ad_main_image_container"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="10dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/ad_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="广告标题"
+                android:textColor="#333333"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end"/>
+
+            <TextView
+                android:id="@+id/ad_desc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="这里是广告描述信息..."
+                android:textColor="#666666"
+                android:textSize="12sp"
+                android:maxLines="2"
+                android:ellipsize="end"/>
+
+            <!-- 底部区域：角标 + 按钮 -->
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp">
+
+                <!-- 广告Logo/角标 -->
+                <RelativeLayout
+                    android:id="@+id/ad_logo_rl"
+                    android:layout_width="20dp"
+                    android:layout_height="10dp"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"/>
+
+                <!-- 行为按钮 -->
+                <RelativeLayout
+                    android:id="@+id/ad_action_rl"
+                    android:layout_width="60dp"
+                    android:layout_height="24dp"
+                    android:layout_alignParentEnd="true"/>
+            </RelativeLayout>
+        </LinearLayout>
+    </RelativeLayout>
+
+    <!-- 必须保留的隐藏控件，用于下载类广告 -->
+    <TextView
+        android:id="@+id/ad_download_info_tv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"/>
+
+    <FrameLayout
+        android:id="@+id/ad_shake_view_fl"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"/>
+
+</xyz.adscope.amps.ad.unified.view.AMPSUnifiedRootContainer>
