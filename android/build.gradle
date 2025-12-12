@@ -1,0 +1,111 @@
+group = "com.zzsr.my_ads_plugin"
+version = "1.0-SNAPSHOT"
+
+buildscript {
+    ext.kotlin_version = "1.9.10" // 建议用稳定版本，2.x 有时会有兼容问题，可改回你想要的
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        // 这里的版本号保持你项目生成的即可
+        classpath("com.android.tools.build:gradle:8.1.1")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+
+        // 【新增 1】必须添加广告 SDK 需要的远程仓库
+        maven { url "https://artifact.bytedance.com/repository/pangle" }
+        maven { url 'https://jitpack.io' }
+        maven { url 'https://developer.huawei.com/repo/' }
+    }
+}
+
+apply plugin: "com.android.library"
+apply plugin: "kotlin-android"
+
+android {
+    namespace = "com.zzsr.my_ads_plugin"
+    compileSdk = 34 // 建议用 34，36 可能太新了不稳定
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    sourceSets {
+        main.java.srcDirs += "src/main/kotlin"
+        test.java.srcDirs += "src/test/kotlin"
+    }
+
+    defaultConfig {
+        minSdk = 24
+
+        // 【新增 2】开启 MultiDex (广告SDK方法数很多)
+        multiDexEnabled true
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    // 【新增 3】避免发布 release 包时混淆导致类找不到
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    testOptions {
+        unitTests.all {
+            useJUnitPlatform()
+            testLogging {
+                events "passed", "skipped", "failed", "standardOut", "standardError"
+                outputs.upToDateWhen {false}
+                showStandardStreams = true
+            }
+        }
+    }
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    testImplementation("org.jetbrains.kotlin:kotlin-test")
+    testImplementation("org.mockito:mockito-core:5.0.0")
+
+    // =========================================================
+    // 【新增 4】核心广告 SDK 依赖迁移
+    // =========================================================
+
+    // 1. 引入 libs 下所有的 .aar 和 .jar
+    // 注意：你必须把之前项目 android/app/libs 里的文件复制到 本插件 android/libs 下
+    implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
+
+    // 2. 京东渠道 SDK
+    implementation 'com.github.JAD-FE-TEAM.JADYunAndroid:jad_yun_sdk:2.6.28'
+
+    // 3. 华为渠道 SDK
+    implementation "com.huawei.hms:ads-lite:13.4.78.301"
+    implementation "com.huawei.hms:ads-consent:3.4.78.301"
+
+    // 4. MultiDex
+    implementation 'androidx.multidex:multidex:2.0.1'
+
+    // 5. 基础依赖 (Gson, AppCompat, Material)
+    implementation 'com.google.code.gson:gson:2.8.9'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.cardview:cardview:1.0.0'
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation 'com.google.android.material:material:1.10.0'
+
+    // 6. Glide (自渲染广告必须)
+    implementation 'com.github.bumptech.glide:glide:4.16.0'
+}
