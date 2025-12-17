@@ -23,7 +23,7 @@ dependencies:
   my_ads_plugin:
     git:
       url: https://github.com/zhangxun86/flutter_my_ads_sdk.git
-      ref: main
+      ref:  v1.0.6
 ```
 
 运行安装命令：
