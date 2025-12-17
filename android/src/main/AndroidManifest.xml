@@ -38,6 +38,20 @@
     <application>
         <!-- 3. FileProvider 配置 (全部保留) -->
 
+        <!-- 【修正】使用正确的类名，强制去标题栏 -->
+        <activity
+            android:name="com.beizi.ad.v2.activity.BeiZiNewRewardVideoActivity"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+            tools:replace="android:theme" />
+
+        <!-- 为了保险，保留或者添加 fusion 包名的配置（有些旧版本可能还要用） -->
+        <activity
+            android:name="com.beizi.fusion.BeiZiNewRewardVideoActivity"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+            tools:replace="android:theme" />
+
         <!-- BeiZiSDK -->
         <provider
             android:name="androidx.core.content.FileProvider"
