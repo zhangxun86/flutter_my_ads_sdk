@@ -8,6 +8,7 @@ import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
+import android.view.Window
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.widget.FrameLayout
@@ -22,15 +23,12 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 
-// SDK Imports
 import xyz.adscope.amps.AMPSSDK
 import xyz.adscope.amps.common.AMPSError
 import xyz.adscope.amps.config.AMPSPrivacyConfig
 import xyz.adscope.amps.config.AMPSRequestParameters
 import xyz.adscope.amps.init.AMPSInitConfig
 import xyz.adscope.amps.init.inter.IAMPSInitCallback
-
-// Ads Imports
 import xyz.adscope.amps.ad.splash.AMPSSplashAd
 import xyz.adscope.amps.ad.splash.AMPSSplashLoadEventListener
 import xyz.adscope.amps.ad.interstitial.AMPSInterstitialAd
@@ -38,7 +36,6 @@ import xyz.adscope.amps.ad.interstitial.AMPSInterstitialLoadEventListener
 import xyz.adscope.amps.ad.reward.AMPSRewardVideoAd
 import xyz.adscope.amps.ad.reward.AMPSRewardVideoLoadEventListener
 
-/** MyAdsPlugin */
 class MyAdsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
 
     private lateinit var channel : MethodChannel
@@ -48,7 +45,6 @@ class MyAdsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
     private val TAG = "AdPlugin"
     private var isSdkInitialized = false
 
-    // 广告对象
     private var splashContainer: FrameLayout? = null
     private var mSplashAd: AMPSSplashAd? = null
     private var splashLoadsLeft = 0
@@ -60,10 +56,6 @@ class MyAdsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
 
     private var mAMPSRewardVideoAd: AMPSRewardVideoAd? = null
 
-
-    // =========================================================
-    // 1. Flutter 引擎绑定
-    // =========================================================
     override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "my_ads_plugin")
         channel.setMethodCallHandler(this)
@@ -79,16 +71,21 @@ class MyAdsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
     }
 
     // =========================================================
-    // 2. Activity 生命周期绑定
+    // 2. Activity 绑定 (在此处尝试隐藏标题栏)
     // =========================================================
-    override fun onAttachedToActivity(binding: ActivityPluginBinding) { activity = binding.activity }
+    override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+        activity = binding.activity
+        // 【增强】一绑定就尝试隐藏
+        hideSystemUI()
+    }
+
     override fun onDetachedFromActivityForConfigChanges() { activity = null }
-    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) { activity = binding.activity }
+    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
+        activity = binding.activity
+        hideSystemUI()
+    }
     override fun onDetachedFromActivity() { activity = null }
 
-    // =========================================================
-    // 3. 处理 Flutter 方法调用
-    // =========================================================
     override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
         val args = call.arguments as? Map<String, Any>
         val posId = args?.get("posId") as? String
@@ -102,7 +99,7 @@ class MyAdsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
                     initSdk(appId, appName)
                     result.success(true)
                 } else {
-                    result.error("INIT_ERROR", "AppId or Context is null", null)
+                    result.error("INIT_ERROR", "AppId is null", null)
                 }
             }
             "showSplash" -> {
@@ -112,7 +109,7 @@ class MyAdsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
                     startSplashRecursively()
                     result.success(true)
                 } else {
-                    result.error("ERROR", "Activity or PosId is null", null)
+                    result.error("ERROR", "Activity/PosId error", null)
                 }
             }
             "showInterstitial" -> {
@@ -122,7 +119,7 @@ class MyAdsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
                     loadInterstitialRecursively()
                     result.success(true)
                 } else {
-                    result.error("ERROR", "Activity or PosId is null", null)
+                    result.error("ERROR", "Activity/PosId error", null)
                 }
             }
             "showRewardVideo" -> {
@@ -130,7 +127,7 @@ class MyAdsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
                     loadRewardVideo(posId)
                     result.success(true)
                 } else {
-                    result.error("ERROR", "Activity or PosId is null", null)
+                    result.error("ERROR", "Activity/PosId error", null)
                 }
             }
             else -> result.notImplemented()
@@ -138,17 +135,22 @@ class MyAdsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
     }
 
     // =========================================================
-    // 【新增】强制隐藏系统UI (状态栏、导航栏、标题栏)
+    // 【核心修改】强力隐藏系统 UI 和 标题栏
     // =========================================================
     private fun hideSystemUI() {
         val act = activity ?: return
         act.runOnUiThread {
-            // 1. 隐藏 ActionBar (标题栏)
-            if (act.actionBar != null) {
+            try {
+                // 1. 尝试隐藏原生 ActionBar
                 act.actionBar?.hide()
+
+                // 2. 尝试请求无标题特性 (必须在 setContentView 之前，但也试一下)
+                act.requestWindowFeature(Window.FEATURE_NO_TITLE)
+            } catch (e: Exception) {
+                // 忽略错误
             }
 
-            // 2. 隐藏系统状态栏和导航栏 (沉浸式模式)
+            // 3. 沉浸式全屏
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 act.window.insetsController?.let { controller ->
                     controller.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
@@ -168,18 +170,13 @@ class MyAdsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
         }
     }
 
-    // =========================================================
-    // 4. 辅助方法
-    // =========================================================
+    // ... 辅助方法 ...
     private fun sendEvent(adType: String, event: String, msg: String = "") {
         Handler(Looper.getMainLooper()).post {
             channel.invokeMethod("onAdEvent", mapOf("adType" to adType, "event" to event, "msg" to msg))
         }
     }
 
-    // =========================================================
-    // 5. 业务逻辑
-    // =========================================================
     private fun initSdk(appId: String, appName: String) {
         val config = AMPSInitConfig.Builder().setAppId(appId).setAppName(appName).openDebugLog(true)
             .setAMPSPrivacyConfig(object : AMPSPrivacyConfig() {
@@ -198,10 +195,7 @@ class MyAdsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
 
     private fun startSplashRecursively() {
         val act = activity ?: return
-        if (splashLoadsLeft <= 0) {
-            removeSplashContainer()
-            return
-        }
+        if (splashLoadsLeft <= 0) { removeSplashContainer(); return }
         splashLoadsLeft--
 
         if (splashContainer == null) {
@@ -212,28 +206,17 @@ class MyAdsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
         }
 
         mSplashAd?.destroy()
-        val params = AMPSRequestParameters.Builder()
-            .setSpaceId(currentSplashPosId)
-            .setTimeOut(5000)
-            .setWidth(act.resources.displayMetrics.widthPixels)
-            .setHeight(act.resources.displayMetrics.heightPixels)
-            .build()
+        val params = AMPSRequestParameters.Builder().setSpaceId(currentSplashPosId).setTimeOut(5000)
+            .setWidth(act.resources.displayMetrics.widthPixels).setHeight(act.resources.displayMetrics.heightPixels).build()
 
         mSplashAd = AMPSSplashAd(act, params, object: AMPSSplashLoadEventListener {
             override fun onAmpsAdLoaded() {
                 sendEvent("splash", "onLoaded")
-                // 【关键】展示前隐藏 UI
-                hideSystemUI()
+                hideSystemUI() // 再次强制隐藏
                 mSplashAd?.show(splashContainer)
             }
-            override fun onAmpsAdDismiss() {
-                sendEvent("splash", "onDismiss")
-                startSplashRecursively()
-            }
-            override fun onAmpsAdFailed(e: AMPSError?) {
-                sendEvent("splash", "onFailed", e?.toString() ?: "")
-                startSplashRecursively()
-            }
+            override fun onAmpsAdDismiss() { sendEvent("splash", "onDismiss"); startSplashRecursively() }
+            override fun onAmpsAdFailed(e: AMPSError?) { sendEvent("splash", "onFailed", e?.toString() ?: ""); startSplashRecursively() }
             override fun onAmpsAdShow() { sendEvent("splash", "onShow") }
             override fun onAmpsAdClicked() { sendEvent("splash", "onClick") }
         })
@@ -242,8 +225,8 @@ class MyAdsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
 
     private fun removeSplashContainer() {
         activity?.runOnUiThread {
-            if (splashContainer != null && splashContainer!!.parent != null) {
-                (splashContainer!!.parent as ViewGroup).removeView(splashContainer)
+            if (splashContainer?.parent != null) {
+                (splashContainer?.parent as ViewGroup).removeView(splashContainer)
                 splashContainer = null
             }
         }
@@ -254,31 +237,19 @@ class MyAdsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
         if (interstitialLoadsLeft <= 0) return
         interstitialLoadsLeft--
 
-        val params = AMPSRequestParameters.Builder()
-            .setSpaceId(currentInterstitialPosId)
-            .setTimeOut(5000)
-            .setWidth(600).setHeight(600)
-            .build()
-
+        val params = AMPSRequestParameters.Builder().setSpaceId(currentInterstitialPosId).setTimeOut(5000)
+            .setWidth(600).setHeight(600).build()
         mAMPSInterstitialAd?.destroy()
-
         mAMPSInterstitialAd = AMPSInterstitialAd(act, params, object: AMPSInterstitialLoadEventListener {
             override fun onAmpsAdLoaded() {
                 sendEvent("interstitial", "onLoaded")
                 if (!act.isFinishing) {
-                    // 【关键】展示前隐藏 UI
-                    hideSystemUI()
+                    hideSystemUI() // 再次强制隐藏
                     mAMPSInterstitialAd?.show(act)
                 }
             }
-            override fun onAmpsAdDismiss() {
-                sendEvent("interstitial", "onDismiss")
-                loadInterstitialRecursively()
-            }
-            override fun onAmpsAdFailed(e: AMPSError?) {
-                sendEvent("interstitial", "onFailed", e?.toString() ?: "")
-                loadInterstitialRecursively()
-            }
+            override fun onAmpsAdDismiss() { sendEvent("interstitial", "onDismiss"); loadInterstitialRecursively() }
+            override fun onAmpsAdFailed(e: AMPSError?) { sendEvent("interstitial", "onFailed", e?.toString() ?: ""); loadInterstitialRecursively() }
             override fun onAmpsAdShow() { sendEvent("interstitial", "onShow") }
             override fun onAmpsAdClicked() { sendEvent("interstitial", "onClick") }
             override fun onAmpsSkippedAd() {}
@@ -296,8 +267,7 @@ class MyAdsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
             override fun onAmpsAdLoad() {
                 sendEvent("reward", "onLoaded")
                 if (!act.isFinishing) {
-                    // 【关键】展示前隐藏 UI，解决标题栏和导航栏未隐藏的问题
-                    hideSystemUI()
+                    hideSystemUI() // 再次强制隐藏
                     mAMPSRewardVideoAd?.show(act)
                 }
             }
